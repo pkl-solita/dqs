@@ -362,8 +362,29 @@
   }
 
   .tile-actions {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.5rem;
+  }
+
+  .tile-actions .tile-action:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .tile-meta {
+    font-size: 0.95rem;
+  }
+
+  .points-badge {
+    font-size: 0.88rem;
+    padding: 0.28rem 0.6rem;
+  }
+
+  .sample-toggle {
+    font-size: 1rem;
+  }
+
+  .dqs-chart-wrap figcaption {
+    font-size: 0.95rem;
   }
 
   .history-topline {
