@@ -18,6 +18,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
+      },
       includeAssets: ['vite.svg'],
       manifest: {
         name: 'Diet Quality Score',
@@ -26,10 +31,11 @@ export default defineConfig({
         theme_color: '#183a37',
         background_color: '#f6f4ef',
         display: 'standalone',
-        start_url: '/',
+        start_url: base,
+        scope: base,
         icons: [
           {
-            src: '/vite.svg',
+            src: `${base}vite.svg`,
             sizes: 'any',
             type: 'image/svg+xml',
             purpose: 'any',
