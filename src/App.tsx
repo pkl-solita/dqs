@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import './App.css'
 import { CATALOG } from './data/catalog'
@@ -59,6 +60,7 @@ function App() {
   )
 
   const selectedType = CATALOG.find((item) => item.id === selectedTypeId) ?? null
+  const canRenderPortal = typeof document !== 'undefined'
   const selectedEntries = selectedType
     ? todayEntries.filter((entry) => entry.foodTypeId === selectedType.id)
     : []
@@ -275,43 +277,46 @@ function App() {
         </main>
       )}
 
-      {selectedType ? (
-        <section
-          className="detail-sheet"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="detail-title"
-          onClick={() => setSelectedTypeId(null)}
-        >
-          <div className="detail-content" onClick={(event) => event.stopPropagation()}>
-            <div className="detail-head">
-              <h2 id="detail-title">{selectedType.name}</h2>
-              <button type="button" onClick={() => setSelectedTypeId(null)}>
-                Close
-              </button>
-            </div>
-            <p>{selectedType.definition}</p>
-            <h3>Today entries</h3>
-            <ul className="entry-list">
-              {selectedEntries.length === 0 ? (
-                <li>No entries yet today.</li>
-              ) : (
-                selectedEntries.map((entry) => (
-                  <li key={entry.id}>
-                    <span>{new Date(entry.timestamp).toLocaleTimeString()}</span>
-                    <span>
-                      {formatPortion(entry.portionUnits)} | {formatPoints(entry.pointsAwarded, true)} pts
-                    </span>
-                    <button type="button" onClick={() => void handleRemoveEntry(entry.id)}>
-                      Remove
-                    </button>
-                  </li>
-                ))
-              )}
-            </ul>
-          </div>
-        </section>
-      ) : null}
+      {selectedType && canRenderPortal
+        ? createPortal(
+            <section
+              className="detail-sheet"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="detail-title"
+              onClick={() => setSelectedTypeId(null)}
+            >
+              <div className="detail-content" onClick={(event) => event.stopPropagation()}>
+                <div className="detail-head">
+                  <h2 id="detail-title">{selectedType.name}</h2>
+                  <button type="button" onClick={() => setSelectedTypeId(null)}>
+                    Close
+                  </button>
+                </div>
+                <p>{selectedType.definition}</p>
+                <h3>Today entries</h3>
+                <ul className="entry-list">
+                  {selectedEntries.length === 0 ? (
+                    <li>No entries yet today.</li>
+                  ) : (
+                    selectedEntries.map((entry) => (
+                      <li key={entry.id}>
+                        <span>{new Date(entry.timestamp).toLocaleTimeString()}</span>
+                        <span>
+                          {formatPortion(entry.portionUnits)} | {formatPoints(entry.pointsAwarded, true)} pts
+                        </span>
+                        <button type="button" onClick={() => void handleRemoveEntry(entry.id)}>
+                          Remove
+                        </button>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </div>
+            </section>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }
