@@ -34,3 +34,19 @@ npm run lint
 npm run test:run
 npm run build
 ```
+
+## Deploy to GitHub Pages
+
+This repo includes a GitHub Actions workflow at [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml).
+
+Deploy flow:
+
+1. Push to the `main` branch
+2. GitHub Actions builds and deploys `dist/` to Pages
+
+One-time GitHub setup:
+
+1. Go to repository Settings -> Pages
+2. Under Build and deployment, set Source to GitHub Actions
+
+After deployment, your site URL will be shown in the workflow run summary.
