@@ -28,4 +28,6 @@ export interface DailyTypeState {
 export interface DailyState {
   totalScore: number
   perType: Record<string, DailyTypeState>
+  /** Points each entry contributed, keyed by entry id. */
+  perEntryPoints: Record<string, number>
 }

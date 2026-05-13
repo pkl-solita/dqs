@@ -42,6 +42,8 @@ export function pointsForNextServing(foodType: FoodType, currentCount: number): 
 
 export function computeDailyState(entries: LogEntry[], catalog: FoodType[]): DailyState {
   const perType: DailyState['perType'] = {}
+  const perEntryPoints: Record<string, number> = {}
+  const catalogById = new Map(catalog.map((foodType) => [foodType.id, foodType]))
 
   for (const foodType of catalog) {
     perType[foodType.id] = {
@@ -51,13 +53,31 @@ export function computeDailyState(entries: LogEntry[], catalog: FoodType[]): Dai
     }
   }
 
-  for (const entry of entries) {
-    const current = perType[entry.foodTypeId]
-    if (!current) {
+  // Replay entries in timestamp order so each entry's points reflect the
+  // schedule position it occupied at the time of logging, independent of the
+  // (now derived) value stored on the entry.
+  const sortedEntries = [...entries].sort((a, b) =>
+    a.timestamp.localeCompare(b.timestamp),
+  )
+
+  let totalScore = 0
+  for (const entry of sortedEntries) {
+    const foodType = catalogById.get(entry.foodTypeId)
+    if (!foodType) {
+      perEntryPoints[entry.id] = 0
       continue
     }
 
-    current.portionUnits += entryPortionUnits(entry)
+    const stats = perType[foodType.id]
+    const portionUnitsToAdd = entryPortionUnits(entry)
+    const points = pointsForPortionAddition(
+      foodType,
+      stats.portionUnits,
+      portionUnitsToAdd,
+    )
+    stats.portionUnits += portionUnitsToAdd
+    perEntryPoints[entry.id] = points
+    totalScore += points
   }
 
   for (const foodType of catalog) {
@@ -66,6 +86,5 @@ export function computeDailyState(entries: LogEntry[], catalog: FoodType[]): Dai
     stats.nextPoints = pointsForPortionAddition(foodType, stats.portionUnits, WHOLE_PORTION_UNITS)
   }
 
-  const totalScore = entries.reduce((sum, entry) => sum + entry.pointsAwarded, 0)
-  return { totalScore, perType }
+  return { totalScore, perType, perEntryPoints }
 }

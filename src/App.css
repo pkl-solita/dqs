@@ -25,6 +25,58 @@
   background: rgba(214, 94, 48, 0.35);
 }
 
+.error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.65rem 1rem;
+  border-radius: 0.75rem;
+  background: rgba(192, 36, 36, 0.12);
+  border: 1px solid rgba(192, 36, 36, 0.45);
+  font-size: 0.9rem;
+}
+
+.error-banner button {
+  padding: 0.35rem 0.9rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(192, 36, 36, 0.55);
+  background: rgba(192, 36, 36, 0.18);
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.error-banner button:hover {
+  background: rgba(192, 36, 36, 0.3);
+}
+
+.error-fallback {
+  max-width: 32rem;
+  margin: 3rem auto;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  background: rgba(192, 36, 36, 0.08);
+  border: 1px solid rgba(192, 36, 36, 0.35);
+}
+
+.error-fallback pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.85rem;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+}
+
+.detail-head button:focus-visible,
+.tile-action:focus-visible,
+.tabs button:focus-visible {
+  outline: 2px solid #d65e30;
+  outline-offset: 2px;
+}
+
 .app-shell {
   width: min(1100px, 95vw);
   margin: 2rem auto;

@@ -31,7 +31,11 @@ function App() {
   const [historySeries, setHistorySeries] = useState<DailyTotal[]>([])
   const [useSampleData, setUseSampleData] = useState(false)
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const triggerElementRef = useRef<HTMLElement | null>(null)
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null)
 
+  const showSampleToggle = import.meta.env.DEV
   const todayKey = useMemo(() => toLocalDateKey(new Date()), [])
 
   const loadHistorySeries = useCallback(async (): Promise<void> => {
@@ -39,8 +43,8 @@ function App() {
     const totals = await Promise.all(
       keys.map(async (dateKey) => {
         const entries = await getEntriesForDate(dateKey)
-        const total = entries.reduce((sum, entry) => sum + entry.pointsAwarded, 0)
-        return { dateKey, total }
+        const { totalScore } = computeDailyState(entries, CATALOG)
+        return { dateKey, total: totalScore }
       }),
     )
 
@@ -72,9 +76,18 @@ function App() {
 
   useEffect(() => {
     void (async () => {
-      const entries = await getEntriesForDate(todayKey)
-      setTodayEntries(entries)
-      await loadHistorySeries()
+      try {
+        const entries = await getEntriesForDate(todayKey)
+        setTodayEntries(entries)
+        await loadHistorySeries()
+        setLoadError(null)
+      } catch (error) {
+         
+        console.error('Failed to load entries', error)
+        setLoadError(
+          error instanceof Error ? error.message : 'Could not load saved entries.',
+        )
+      }
     })()
   }, [loadHistorySeries, todayKey])
 
@@ -106,8 +119,14 @@ function App() {
     }
 
     const previousOverflow = document.body.style.overflow
+    const previouslyFocused = document.activeElement as HTMLElement | null
     document.body.style.overflow = 'hidden'
     window.scrollTo({ top: 0, behavior: 'smooth' })
+
+    // Move focus into the dialog on open.
+    const focusTimer = window.setTimeout(() => {
+      closeButtonRef.current?.focus()
+    }, 0)
 
     function handleEscape(event: KeyboardEvent): void {
       if (event.key === 'Escape') {
@@ -118,8 +137,14 @@ function App() {
     window.addEventListener('keydown', handleEscape)
 
     return () => {
+      window.clearTimeout(focusTimer)
       document.body.style.overflow = previousOverflow
       window.removeEventListener('keydown', handleEscape)
+      // Restore focus to the element that opened the dialog when possible,
+      // otherwise fall back to the recorded trigger.
+      const target = triggerElementRef.current ?? previouslyFocused
+      target?.focus?.()
+      triggerElementRef.current = null
     }
   }, [selectedType])
 
@@ -136,18 +161,47 @@ function App() {
     await addEntryAndRefresh(newEntry)
   }
 
+  async function refreshFromStore(): Promise<void> {
+    try {
+      const entries = await getEntriesForDate(todayKey)
+      setTodayEntries(entries)
+      await loadHistorySeries()
+      setLoadError(null)
+    } catch (error) {
+       
+      console.error('Failed to refresh entries', error)
+      setLoadError(
+        error instanceof Error ? error.message : 'Could not save changes.',
+      )
+    }
+  }
+
   async function addEntryAndRefresh(entry: LogEntry): Promise<void> {
-    await addEntry(entry)
-    const entries = await getEntriesForDate(todayKey)
-    setTodayEntries(entries)
-    await loadHistorySeries()
+    try {
+      await addEntry(entry)
+    } catch (error) {
+       
+      console.error('Failed to add entry', error)
+      setLoadError(
+        error instanceof Error ? error.message : 'Could not save this entry.',
+      )
+      return
+    }
+    await refreshFromStore()
   }
 
   async function handleRemoveEntry(entryId: string): Promise<void> {
-    await removeEntry(entryId)
-    const entries = await getEntriesForDate(todayKey)
-    setTodayEntries(entries)
-    await loadHistorySeries()
+    try {
+      await removeEntry(entryId)
+    } catch (error) {
+       
+      console.error('Failed to remove entry', error)
+      setLoadError(
+        error instanceof Error ? error.message : 'Could not remove this entry.',
+      )
+      return
+    }
+    await refreshFromStore()
   }
 
   function renderGroup(group: FoodTypeGroup): React.JSX.Element {
@@ -178,7 +232,10 @@ function App() {
                   <button
                     className="tile-action secondary"
                     type="button"
-                    onClick={() => setSelectedTypeId(foodType.id)}
+                    onClick={(event) => {
+                      triggerElementRef.current = event.currentTarget
+                      setSelectedTypeId(foodType.id)
+                    }}
                   >
                     Details
                   </button>
@@ -212,6 +269,14 @@ function App() {
           <span>A new version is available.</span>
           <button type="button" onClick={() => void updateServiceWorker(true)}>
             Reload
+          </button>
+        </div>
+      ) : null}
+      {loadError ? (
+        <div className="error-banner" role="alert">
+          <span>{loadError}</span>
+          <button type="button" onClick={() => void refreshFromStore()}>
+            Retry
           </button>
         </div>
       ) : null}
@@ -264,14 +329,16 @@ function App() {
           <section className="history-panel">
             <div className="history-topline">
               <h2>Past 30 Days</h2>
-              <label className="sample-toggle">
-                <input
-                  type="checkbox"
-                  checked={useSampleData}
-                  onChange={(event) => setUseSampleData(event.target.checked)}
-                />
-                Show sample data
-              </label>
+              {showSampleToggle ? (
+                <label className="sample-toggle">
+                  <input
+                    type="checkbox"
+                    checked={useSampleData}
+                    onChange={(event) => setUseSampleData(event.target.checked)}
+                  />
+                  Show sample data (dev)
+                </label>
+              ) : null}
             </div>
             <HistoryChart series={displayedSeries} />
           </section>
@@ -292,7 +359,7 @@ function App() {
                     <span>{new Date(entry.timestamp).toLocaleTimeString()}</span>
                     <span>{foodTypeNameById[entry.foodTypeId] ?? 'Unknown food type'}</span>
                     <span>
-                      {formatPortion(entry.portionUnits)} | {formatPoints(entry.pointsAwarded, true)} pts
+                      {formatPortion(entry.portionUnits)} | {formatPoints(todayState.perEntryPoints[entry.id] ?? 0, true)} pts
                     </span>
                     <button type="button" onClick={() => void handleRemoveEntry(entry.id)}>
                       Remove
@@ -317,7 +384,11 @@ function App() {
               <div className="detail-content" onClick={(event) => event.stopPropagation()}>
                 <div className="detail-head">
                   <h2 id="detail-title">{selectedType.name}</h2>
-                  <button type="button" onClick={() => setSelectedTypeId(null)}>
+                  <button
+                    ref={closeButtonRef}
+                    type="button"
+                    onClick={() => setSelectedTypeId(null)}
+                  >
                     Close
                   </button>
                 </div>
@@ -331,7 +402,7 @@ function App() {
                       <li key={entry.id}>
                         <span>{new Date(entry.timestamp).toLocaleTimeString()}</span>
                         <span>
-                          {formatPortion(entry.portionUnits)} | {formatPoints(entry.pointsAwarded, true)} pts
+                          {formatPortion(entry.portionUnits)} | {formatPoints(todayState.perEntryPoints[entry.id] ?? 0, true)} pts
                         </span>
                         <button type="button" onClick={() => void handleRemoveEntry(entry.id)}>
                           Remove

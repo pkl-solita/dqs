@@ -51,7 +51,24 @@ export async function getEntriesForDate(dateKey: string): Promise<LogEntry[]> {
   const rows = await index.getAll(dateKey)
   await tx.done
 
-  return rows.sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+  // ISO 8601 timestamps sort correctly lexicographically.
+  return rows.filter(isValidLogEntry).sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+}
+
+function isValidLogEntry(value: unknown): value is LogEntry {
+  if (!value || typeof value !== 'object') return false
+  const entry = value as Partial<LogEntry>
+  return (
+    typeof entry.id === 'string' &&
+    typeof entry.dateKey === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(entry.dateKey) &&
+    typeof entry.foodTypeId === 'string' &&
+    typeof entry.timestamp === 'string' &&
+    !Number.isNaN(Date.parse(entry.timestamp)) &&
+    (entry.portionUnits === 1 || entry.portionUnits === 2) &&
+    typeof entry.pointsAwarded === 'number' &&
+    Number.isFinite(entry.pointsAwarded)
+  )
 }
 
 export async function getAllDateKeys(): Promise<string[]> {

@@ -74,12 +74,18 @@ describe('score engine', () => {
 
     const state = computeDailyState(entries, CATALOG)
 
-    expect(state.totalScore).toBe(5)
+    // whole-grains 1st+2nd serving = 2+2, vegetables 1st = 2,
+    // fried-foods 1st = -2. Total = 4. Stored pointsAwarded on each entry
+    // is ignored; totals are derived from the schedule + portion counts.
+    expect(state.totalScore).toBe(4)
     expect(state.perType['whole-grains'].count).toBe(2)
     expect(state.perType['whole-grains'].nextPoints).toBe(1)
     expect(state.perType['vegetables'].count).toBe(1)
     expect(state.perType['fried-foods'].count).toBe(1)
     expect(state.perType['fried-foods'].nextPoints).toBe(-2)
+    expect(state.perEntryPoints['1']).toBe(2)
+    expect(state.perEntryPoints['3']).toBe(2)
+    expect(state.perEntryPoints['4']).toBe(-2)
   })
 
   it('handles empty day with initial next points', () => {
@@ -106,5 +112,28 @@ describe('score engine', () => {
     expect(state.perType['whole-grains'].count).toBe(0.5)
     expect(state.perType['whole-grains'].nextPoints).toBe(2)
     expect(state.totalScore).toBe(1)
+  })
+
+  it('recomputes total from schedule, not from stored pointsAwarded', () => {
+    // Two vegetables entries: removing the first should not leave the
+    // remaining entry crediting the 2nd-serving slot.
+    const entries: LogEntry[] = [
+      {
+        id: 'a',
+        foodTypeId: 'vegetables',
+        dateKey: '2026-05-13',
+        timestamp: '2026-05-13T08:00:00.000Z',
+        portionUnits: 2,
+        // Stale value from when this was the 1st serving.
+        pointsAwarded: 2,
+      },
+    ]
+
+    // Even if stored pointsAwarded were wrong (e.g. 999), totalScore must
+    // reflect the schedule for the current portion count.
+    entries[0].pointsAwarded = 999
+    const state = computeDailyState(entries, CATALOG)
+    expect(state.totalScore).toBe(2)
+    expect(state.perEntryPoints['a']).toBe(2)
   })
 })
