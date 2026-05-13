@@ -20,7 +20,7 @@ interface DailyTotal {
 function App() {
   const { needRefresh, updateServiceWorker } = useRegisterSW()
 
-  const [activeTab, setActiveTab] = useState<'today' | 'history'>('today')
+  const [activeTab, setActiveTab] = useState<'today' | 'history' | 'overview'>('today')
   const [todayEntries, setTodayEntries] = useState<LogEntry[]>([])
   const [historySeries, setHistorySeries] = useState<DailyTotal[]>([])
   const [useSampleData, setUseSampleData] = useState(false)
@@ -62,6 +62,13 @@ function App() {
   const selectedEntries = selectedType
     ? todayEntries.filter((entry) => entry.foodTypeId === selectedType.id)
     : []
+  const foodTypeNameById = useMemo(
+    () =>
+      Object.fromEntries(
+        CATALOG.map((foodType) => [foodType.id, foodType.name]),
+      ),
+    [],
+  )
 
   useEffect(() => {
     if (!selectedType) {
@@ -207,6 +214,13 @@ function App() {
         >
           History
         </button>
+        <button
+          type="button"
+          className={activeTab === 'overview' ? 'active' : ''}
+          onClick={() => setActiveTab('overview')}
+        >
+          Day Overview
+        </button>
       </nav>
 
       {activeTab === 'today' ? (
@@ -215,7 +229,7 @@ function App() {
           {renderGroup('low')}
           {renderGroup('catchAll')}
         </main>
-      ) : (
+      ) : activeTab === 'history' ? (
         <main className="history-layout">
           <section className="history-panel">
             <div className="history-topline">
@@ -230,6 +244,33 @@ function App() {
               </label>
             </div>
             <HistoryChart series={displayedSeries} />
+          </section>
+        </main>
+      ) : (
+        <main className="overview-layout">
+          <section className="overview-panel">
+            <div className="history-topline">
+              <h2>Today Overview</h2>
+              <strong>{formatPoints(todayState.totalScore, true)} DQS</strong>
+            </div>
+            <ul className="entry-list overview-entry-list">
+              {todayEntries.length === 0 ? (
+                <li>No entries logged for today.</li>
+              ) : (
+                todayEntries.map((entry) => (
+                  <li key={entry.id}>
+                    <span>{new Date(entry.timestamp).toLocaleTimeString()}</span>
+                    <span>{foodTypeNameById[entry.foodTypeId] ?? 'Unknown food type'}</span>
+                    <span>
+                      {formatPortion(entry.portionUnits)} | {formatPoints(entry.pointsAwarded, true)} pts
+                    </span>
+                    <button type="button" onClick={() => void handleRemoveEntry(entry.id)}>
+                      Remove
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
           </section>
         </main>
       )}
