@@ -7,7 +7,7 @@ export const CATALOG: FoodType[] = [
     group: 'high',
     definition:
       '',
-    pointSchedule: [2, 2, 2, 1, 0, 0],
+    pointSchedule: [2, 2, 2, 1, 0],
     tailPoints: 0,
   },
   {
@@ -15,7 +15,7 @@ export const CATALOG: FoodType[] = [
     name: 'Fruits',
     group: 'high',
     definition: '',
-    pointSchedule: [2, 2, 2, 1, 0, 0],
+    pointSchedule: [2, 2, 2, 1, 0],
     tailPoints: 0,
   },
   {
