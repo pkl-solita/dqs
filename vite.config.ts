@@ -14,6 +14,9 @@ const base =
 // https://vite.dev/config/
 export default defineConfig({
   base,
+  build: {
+    target: 'es2019',
+  },
   plugins: [
     react(),
     VitePWA({
