@@ -8,7 +8,7 @@ import {
   removeEntry,
 } from './data/entriesRepo'
 import { toLocalDateKey } from './domain/date'
-import { computeDailyState, pointsForNextServing } from './domain/score'
+import { computeDailyState, pointsForPortionAddition } from './domain/score'
 import type { FoodTypeGroup, LogEntry } from './domain/types'
 
 interface DailyTotal {
@@ -60,15 +60,38 @@ function App() {
     ? todayEntries.filter((entry) => entry.foodTypeId === selectedType.id)
     : []
 
-  async function handleAddServing(foodTypeId: string): Promise<void> {
+  useEffect(() => {
+    if (!selectedType) {
+      return
+    }
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+
+    function handleEscape(event: KeyboardEvent): void {
+      if (event.key === 'Escape') {
+        setSelectedTypeId(null)
+      }
+    }
+
+    window.addEventListener('keydown', handleEscape)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleEscape)
+    }
+  }, [selectedType])
+
+  async function handleAddServing(foodTypeId: string, portionUnits: 1 | 2): Promise<void> {
     const foodType = CATALOG.find((item) => item.id === foodTypeId)
     if (!foodType) {
       return
     }
 
-    const currentCount = todayState.perType[foodType.id]?.count ?? 0
-    const pointsAwarded = pointsForNextServing(foodType, currentCount)
-    const newEntry = createLogEntry(foodType.id, pointsAwarded)
+    const currentPortionUnits = todayState.perType[foodType.id]?.portionUnits ?? 0
+    const pointsAwarded = pointsForPortionAddition(foodType, currentPortionUnits, portionUnits)
+    const newEntry = createLogEntry(foodType.id, pointsAwarded, portionUnits)
 
     await addEntryAndRefresh(newEntry)
   }
@@ -96,49 +119,45 @@ function App() {
         <div className="tile-grid">
           {CATALOG.filter((item) => item.group === group).map((foodType) => {
             const stats = todayState.perType[foodType.id]
-            const nextPoints = stats.nextPoints
-            const nextPointsClass = nextPoints < 0 ? 'neg' : nextPoints === 0 ? 'zero' : 'pos'
+            const nextWholePoints = stats.nextPoints
+            const nextPointsClass =
+              nextWholePoints < 0 ? 'neg' : nextWholePoints === 0 ? 'zero' : 'pos'
 
             return (
-              <button
-                key={foodType.id}
-                className="food-tile"
-                type="button"
-                onClick={() => void handleAddServing(foodType.id)}
-                onContextMenu={(event) => {
-                  event.preventDefault()
-                  setSelectedTypeId(foodType.id)
-                }}
-              >
+              <article key={foodType.id} className="food-tile">
                 <div className="tile-top">
                   <strong>{foodType.name}</strong>
                   <span className={`points-badge ${nextPointsClass}`}>
-                    {nextPoints > 0 ? '+' : ''}
-                    {nextPoints} next
+                    Next: {formatPoints(nextWholePoints, true)}
                   </span>
                 </div>
                 <div className="tile-meta">
-                  <span>{stats.count} servings today</span>
-                  <span
-                    className="tile-link"
-                    role="button"
-                    tabIndex={0}
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      setSelectedTypeId(foodType.id)
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        event.stopPropagation()
-                        setSelectedTypeId(foodType.id)
-                      }
-                    }}
-                  >
-                    details
-                  </span>
+                  <span>{formatServings(stats.count)}</span>
                 </div>
-              </button>
+                <div className="tile-actions">
+                  <button
+                    className="tile-action secondary"
+                    type="button"
+                    onClick={() => setSelectedTypeId(foodType.id)}
+                  >
+                    Details
+                  </button>
+                  <button
+                    className="tile-action"
+                    type="button"
+                    onClick={() => void handleAddServing(foodType.id, 1)}
+                  >
+                    +½
+                  </button>
+                  <button
+                    className="tile-action primary"
+                    type="button"
+                    onClick={() => void handleAddServing(foodType.id, 2)}
+                  >
+                    +1
+                  </button>
+                </div>
+              </article>
             )
           })}
         </div>
@@ -157,7 +176,7 @@ function App() {
         </div>
         <div className="score-card">
           <p>Today</p>
-          <strong>{todayState.totalScore}</strong>
+          <strong>{formatPoints(todayState.totalScore)}</strong>
           <span>DQS</span>
         </div>
       </header>
@@ -205,10 +224,16 @@ function App() {
       )}
 
       {selectedType ? (
-        <section className="detail-sheet" role="dialog" aria-modal="true">
-          <div className="detail-content">
+        <section
+          className="detail-sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="detail-title"
+          onClick={() => setSelectedTypeId(null)}
+        >
+          <div className="detail-content" onClick={(event) => event.stopPropagation()}>
             <div className="detail-head">
-              <h2>{selectedType.name}</h2>
+              <h2 id="detail-title">{selectedType.name}</h2>
               <button type="button" onClick={() => setSelectedTypeId(null)}>
                 Close
               </button>
@@ -223,8 +248,7 @@ function App() {
                   <li key={entry.id}>
                     <span>{new Date(entry.timestamp).toLocaleTimeString()}</span>
                     <span>
-                      {entry.pointsAwarded > 0 ? '+' : ''}
-                      {entry.pointsAwarded} pts
+                      {formatPortion(entry.portionUnits)} | {formatPoints(entry.pointsAwarded, true)} pts
                     </span>
                     <button type="button" onClick={() => void handleRemoveEntry(entry.id)}>
                       Remove
@@ -368,12 +392,38 @@ function HistoryChart({ series }: { series: DailyTotal[] }): React.JSX.Element {
       <figcaption>
         <span>{first ? first.dateKey : ''}</span>
         <strong>
-          Latest: {last ? last.total : 0} DQS | Trend: {latestTrend ? latestTrend.toFixed(1) : '0.0'}
+          Latest: {formatPoints(last ? last.total : 0)} DQS | Trend:{' '}
+          {latestTrend ? latestTrend.toFixed(1) : '0.0'}
         </strong>
         <span>{middle ? middle.dateKey : ''}</span>
       </figcaption>
     </figure>
   )
+}
+
+function formatPoints(value: number, includeSign = false): string {
+  const formatted = Number.isInteger(value) ? value.toString() : value.toFixed(1)
+  if (includeSign && value > 0) {
+    return `+${formatted}`
+  }
+
+  return formatted
+}
+
+function formatPortion(portionUnits: number): string {
+  return portionUnits === 1 ? 'Half' : 'Whole'
+}
+
+function formatServings(servings: number): string {
+  if (servings === 1) {
+    return 'Today: 1 serving'
+  }
+
+  if (Number.isInteger(servings)) {
+    return `Today: ${servings} servings`
+  }
+
+  return `Today: ${servings.toFixed(1)} servings`
 }
 
 export default App

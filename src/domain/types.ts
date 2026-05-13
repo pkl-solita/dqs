@@ -14,11 +14,14 @@ export interface LogEntry {
   dateKey: string
   foodTypeId: string
   timestamp: string
+  // 1 = half portion, 2 = whole portion
+  portionUnits: number
   pointsAwarded: number
 }
 
 export interface DailyTypeState {
   count: number
+  portionUnits: number
   nextPoints: number
 }
 

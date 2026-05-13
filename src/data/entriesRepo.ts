@@ -2,12 +2,18 @@ import { getDb } from './db'
 import { toLocalDateKey } from '../domain/date'
 import type { LogEntry } from '../domain/types'
 
-export function createLogEntry(foodTypeId: string, pointsAwarded: number, date = new Date()): LogEntry {
+export function createLogEntry(
+  foodTypeId: string,
+  pointsAwarded: number,
+  portionUnits = 2,
+  date = new Date(),
+): LogEntry {
   return {
     id: crypto.randomUUID(),
     dateKey: toLocalDateKey(date),
     foodTypeId,
     timestamp: date.toISOString(),
+    portionUnits,
     pointsAwarded,
   }
 }

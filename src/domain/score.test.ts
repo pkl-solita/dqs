@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { CATALOG } from '../data/catalog'
-import { computeDailyState, pointsForNextServing, pointsForServing } from './score'
+import {
+  computeDailyState,
+  pointsForNextServing,
+  pointsForPortionAddition,
+  pointsForServing,
+} from './score'
 import type { LogEntry } from './types'
 
 describe('score engine', () => {
@@ -22,6 +27,15 @@ describe('score engine', () => {
     expect(pointsForNextServing(wholeGrains!, 5)).toBe(-1)
   })
 
+  it('calculates points for half and whole additions', () => {
+    const wholeGrains = CATALOG.find((item) => item.id === 'whole-grains')
+    expect(wholeGrains).toBeDefined()
+
+    expect(pointsForPortionAddition(wholeGrains!, 0, 1)).toBe(1)
+    expect(pointsForPortionAddition(wholeGrains!, 1, 1)).toBe(1)
+    expect(pointsForPortionAddition(wholeGrains!, 1, 2)).toBe(2)
+  })
+
   it('sums total and serving counts for a day', () => {
     const entries: LogEntry[] = [
       {
@@ -29,6 +43,7 @@ describe('score engine', () => {
         foodTypeId: 'whole-grains',
         dateKey: '2026-05-13',
         timestamp: '2026-05-13T08:00:00.000Z',
+        portionUnits: 2,
         pointsAwarded: 2,
       },
       {
@@ -36,6 +51,7 @@ describe('score engine', () => {
         foodTypeId: 'vegetables',
         dateKey: '2026-05-13',
         timestamp: '2026-05-13T11:00:00.000Z',
+        portionUnits: 2,
         pointsAwarded: 2,
       },
       {
@@ -43,6 +59,7 @@ describe('score engine', () => {
         foodTypeId: 'whole-grains',
         dateKey: '2026-05-13',
         timestamp: '2026-05-13T13:00:00.000Z',
+        portionUnits: 2,
         pointsAwarded: 2,
       },
       {
@@ -50,6 +67,7 @@ describe('score engine', () => {
         foodTypeId: 'fried-foods',
         dateKey: '2026-05-13',
         timestamp: '2026-05-13T20:00:00.000Z',
+        portionUnits: 2,
         pointsAwarded: -1,
       },
     ]
@@ -69,5 +87,24 @@ describe('score engine', () => {
     expect(state.totalScore).toBe(0)
     expect(state.perType['whole-grains'].count).toBe(0)
     expect(state.perType['whole-grains'].nextPoints).toBe(2)
+  })
+
+  it('counts half portions and computes next whole correctly', () => {
+    const entries: LogEntry[] = [
+      {
+        id: '1',
+        foodTypeId: 'whole-grains',
+        dateKey: '2026-05-13',
+        timestamp: '2026-05-13T08:00:00.000Z',
+        portionUnits: 1,
+        pointsAwarded: 1,
+      },
+    ]
+
+    const state = computeDailyState(entries, CATALOG)
+
+    expect(state.perType['whole-grains'].count).toBe(0.5)
+    expect(state.perType['whole-grains'].nextPoints).toBe(2)
+    expect(state.totalScore).toBe(1)
   })
 })
