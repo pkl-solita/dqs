@@ -1,3 +1,30 @@
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.65rem 1rem;
+  border-radius: 0.75rem;
+  background: rgba(214, 94, 48, 0.15);
+  border: 1px solid rgba(214, 94, 48, 0.4);
+  font-size: 0.9rem;
+}
+
+.update-banner button {
+  padding: 0.35rem 0.9rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(214, 94, 48, 0.6);
+  background: rgba(214, 94, 48, 0.2);
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.update-banner button:hover {
+  background: rgba(214, 94, 48, 0.35);
+}
+
 .app-shell {
   width: min(1100px, 95vw);
   margin: 2rem auto;

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRegisterSW } from 'virtual:pwa-register/react'
 import './App.css'
 import { CATALOG } from './data/catalog'
 import {
@@ -17,6 +18,8 @@ interface DailyTotal {
 }
 
 function App() {
+  const { needRefresh, updateServiceWorker } = useRegisterSW()
+
   const [activeTab, setActiveTab] = useState<'today' | 'history'>('today')
   const [todayEntries, setTodayEntries] = useState<LogEntry[]>([])
   const [historySeries, setHistorySeries] = useState<DailyTotal[]>([])
@@ -167,6 +170,14 @@ function App() {
 
   return (
     <div className="app-shell">
+      {needRefresh[0] ? (
+        <div className="update-banner">
+          <span>A new version is available.</span>
+          <button type="button" onClick={() => void updateServiceWorker(true)}>
+            Reload
+          </button>
+        </div>
+      ) : null}
       <header className="app-header">
         <div>
           <h1>DQS</h1>
