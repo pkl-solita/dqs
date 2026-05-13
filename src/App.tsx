@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import './App.css'
@@ -19,7 +19,12 @@ interface DailyTotal {
 }
 
 function App() {
-  const { needRefresh, updateServiceWorker } = useRegisterSW()
+  const swRegistrationRef = useRef<ServiceWorkerRegistration | null>(null)
+  const { needRefresh, updateServiceWorker } = useRegisterSW({
+    onRegisteredSW(_swUrl, registration) {
+      swRegistrationRef.current = registration ?? null
+    },
+  })
 
   const [activeTab, setActiveTab] = useState<'today' | 'history' | 'overview'>('today')
   const [todayEntries, setTodayEntries] = useState<LogEntry[]>([])
@@ -40,6 +45,29 @@ function App() {
     )
 
     setHistorySeries(totals)
+  }, [])
+
+  useEffect(() => {
+    function checkForServiceWorkerUpdate(): void {
+      void swRegistrationRef.current?.update()
+    }
+
+    function handleVisibilityChange(): void {
+      if (document.visibilityState === 'visible') {
+        checkForServiceWorkerUpdate()
+      }
+    }
+
+    checkForServiceWorkerUpdate()
+    const intervalId = window.setInterval(checkForServiceWorkerUpdate, 60_000)
+    window.addEventListener('focus', checkForServiceWorkerUpdate)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', checkForServiceWorkerUpdate)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [])
 
   useEffect(() => {
